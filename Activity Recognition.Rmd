@@ -1,0 +1,146 @@
+---
+title: "Activity recognition - predictive analytics"
+output: html_document
+---
+
+## Activity recognition - predictive analytics
+ Dhyanesh babu
+  6 April 2018
+
+#Summary
+sing devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+#Dataset
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har.
+
+
+#Steps performed
+1. Loading the data
+2. Cleaning the data
+3. Model selection
+4. Predicting test output
+
+# loading the data
+
+```{r}
+library(caret)
+library(randomForest)
+library(plyr)
+
+
+training_URL <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testing_URL <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+training <- read.csv(url(training_URL))
+testing <- read.csv(url(testing_URL))
+
+
+```
+
+
+
+#Cleaning the data 
+
+```{r}
+set.seed(32233)
+#Remove few columns
+
+training <- subset(training, select=-c(1:7))
+testing <- subset(testing, select=-c(1:7))
+
+
+threshold_val <- 0.95 * dim(training)[1]
+
+# Remove 95 % of the column values are NA
+
+include_columns <- !apply(training, 2, function(y) sum(is.na(y)) > threshold_val || sum(y=="") > threshold_val)
+training <- training[, include_columns]
+
+dim(training)
+
+#variance near zero columns
+
+nearZvar <- nearZeroVar(training, saveMetrics = TRUE)
+training <- training[ , nearZvar$nzv==FALSE] 
+dim(training)
+
+```
+
+#spliting the data
+
+```{r}
+
+#split the dataframe
+
+label <- createDataPartition(training$classe, p = 0.7, list = FALSE)
+train <- training[label, ]
+test <- training[-label, ]
+
+
+library(corrplot)
+corrMat <- cor(train[,-53])
+corrplot(corrMat, method = "color", type = "lower", tl.cex = 0.8, tl.col = rgb(0,0,0))
+
+```
+
+#Model selection
+
+#Decision Tree
+
+#Traning
+
+```{r}
+
+library(rpart)
+library(rpart.plot)
+library(rattle)
+
+set.seed(13908)
+model_decision_tree <- rpart(classe ~ ., data = train, method = "class")
+fancyRpartPlot(model_decision_tree)
+
+```
+
+```{r}
+predict_decision_tree <- predict(model_decision_tree, test, type = "class")
+conf_matric_decision_tree <- confusionMatrix(predict_decision_tree, test$classe)
+conf_matric_decision_tree
+```
+
+#Random forest
+
+```{r}
+library(caret)
+set.seed(13908)
+control <- trainControl(method = "cv", number = 3, verboseIter=FALSE)
+model_Random_Forest <- train(classe ~ ., data = train, method = "rf", trControl = control)
+model_Random_Forest$finalModel
+
+
+
+```
+
+#predict
+```{r}
+
+predict_random_forest <- predict(model_Random_Forest, test)
+conf_matrix_Random_Forest <- confusionMatrix(predict_random_forest, test$classe)
+conf_matrix_Random_Forest
+```
+
+#predicting test output
+
+```{r}
+
+predict_random_forest<- predict(model_Random_Forest, testing)
+predict_random_forest
+```
